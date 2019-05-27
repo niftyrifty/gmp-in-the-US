@@ -1,0 +1,360 @@
+---
+title: "Unit 2 Paper, Technical Appendix"
+author: "Rifayat Uddin"
+date: "2/28/2019"
+output: pdf_document
+---
+External Requirements
+--
+```{r}
+### External Requirements
+library(ggplot2)
+library(boot)
+library(dplyr)
+```
+
+Overview
+--
+This document is the Technical Appendix for Paper 2 Version 2 of Stats 485 Capstone Course. This portion aims at deriving a simplified version of the  supra-linear power model that can be fitted using Ordinary LeastSquares Regression. We also summarize the presence of missing values in my dataset and visualize the relationships between various transformations of Gross Metropolitan Product, population size, and the shares of local economic activity attributed to ICT and Management. This appendix also shows the work behind developing various model hypotheses to predict Gross Metropolitan Product and test these hypotheses using Ordinary Least Squares Regression. Furthermore, further analysis is repeated by combining the holdout data that was given to us for this assignment to be able to get a better understanding of the model.
+
+
+
+Appendix I: Detail of Statistical Models
+--
+1) To better estimate the supra-linear power law scaling model, we need to take the equation associated with the model that was given to us for the Paper 2 Appendix 1, where we considered what it would be in terms of using logarithms. We set Y as the gross metropolitan product of the metropolitan statistical areas of interest, and N is the population size of the metropolitan area. Hence, the model would indicate, using the equations given:
+log(Y) equals to log(cN^b), 
+
+log(cN^b) = log c + b log N = log c + b log N - log N + log N
+
+log(Y) - log(N) = log c + b log N = log c + (b -1) log N
+
+log(Y/N) = log c + b log N = log c + (b -1) log N
+
+
+2) The initial model that is examined is the supra-linear power law scaling model. There are many possible alternatives. The Hypothesis for these are written below:
+Hypothesis 2(a): ICT will have an influence on GMP which will cause the appearance of the supra-linear scaling to not disappear, provided the variables are properly accounted for
+Hypothesis 2(b): Management will have an influence on GMP which will cause the appearance of the supra-linear scaling to not disappear, provided the variables are properly accounted for
+Hypothesis 2(c) ICT and management have an influence on GMP which will cause the appearance of the supra-linear scaling to not disappear, provided the variables are properly accounted for
+
+
+
+
+Appendix II: Exploratory analyses
+--
+This portion analyzes the data that was given to us for version 1 and exploratory data analysis was done to check for missing data and setting models to fit the hypothesis models. 
+
+1)
+```{r}
+#Reading in Data
+data <- read.csv('http://dept.stat.lsa.umich.edu/~bbh/s485/data/gmp-2006.csv')
+
+#Checking for the variables within the Data for better analysis
+head(data)
+
+#Calculating the GMP
+gmp = as.double(data$pcgmp)*as.double(data$pop) 
+
+#Adding this variable gmp into the data using data.frame
+msa_data = data.frame(data, gmp)
+```
+
+
+2)
+```{r}
+#Finding out the missing data
+table(complete.cases(msa_data))
+table(complete.cases(subset(msa_data, select = "finance")))
+table(complete.cases(subset(msa_data, select = "prof.tech")))
+table(complete.cases(subset(msa_data, select = "ict")))
+table(complete.cases(subset(msa_data, select = "management")))
+table(complete.cases(subset(msa_data, select = c("prof.tech","management"))))
+table(complete.cases(subset(msa_data, select = c("ict","management"))))
+table(complete.cases(subset(msa_data, select = c("prof.tech","ict"))))
+table(complete.cases(subset(msa_data, select = c("finance","ict"))))
+table(complete.cases(subset(msa_data, select = c("finance","prof.tech"))))
+table(complete.cases(subset(msa_data, select = c("finance","management"))))
+
+
+#Summarizing Proportions by variables
+#Technology
+tech_mean <- mean(complete.cases(subset(msa_data, select=c(MSA,prof.tech))))
+tech_mean
+
+#Finance
+fin_mean <- mean(complete.cases(subset(msa_data, select=c(MSA,finance))))
+fin_mean
+
+#ICT
+ict_mean <- mean(complete.cases(subset(msa_data, select=c(MSA,ict))))
+ict_mean 
+
+#Management
+management_mean <- mean(complete.cases(subset(msa_data, select=c(MSA,management))))
+management_mean
+
+
+#Summarizing by pairs of variables 
+#Technology and Finance
+tf <- mean(complete.cases(subset(msa_data, select=c(MSA,prof.tech,finance))))
+tf
+
+#Technology and Managment
+tm <- mean(complete.cases(subset(msa_data, select=c(MSA,prof.tech,management))))
+tm
+
+
+#Finance and ICT
+fict <- mean(complete.cases(subset(msa_data, select=c(MSA,finance,ict))))
+fict 
+
+#Finance and Management
+fmgt <- mean(complete.cases(subset(msa_data, select=c(MSA,finance,management))))
+fmgt 
+
+
+#ICT and Management
+ict_mgt <- mean(complete.cases(subset(msa_data, select=c(MSA,ict,management))))
+ict_mgt
+
+#Whole Dataset
+full_dataset <- table(complete.cases(subset(msa_data)))
+full_dataset
+```
+
+3) From the plots below, we can say that the better scale for capturing patterns in the data using a regression model of relatively simple
+structure is the log(GMP) vs log(pop), where pop stands for population. 
+```{r}
+
+#log GMP vs population size
+plot1 = ggplot( msa_data, aes(x=pop, y=log(gmp)) ) 
+plot1 + geom_point() + geom_smooth(se=FALSE)
+
+#GMP vs log population size
+plot2 <- ggplot( msa_data, aes(x=log(pop), y=gmp) ) 
+plot2 + geom_point() + geom_smooth(se=FALSE)
+
+# Scatter plot of log GMP (Y) vs log population size (x)
+plot3<- ggplot( msa_data, aes(x=log(pop), y=log(gmp)) ) 
+plot3 + geom_point() + geom_smooth(se=FALSE)
+```
+
+4)
+```{r}
+#Plot of log GMP vs log population size 
+cool_loggmp_plot <- ggplot( msa_data, aes(x=log(pop), y=log(gmp)) )
+
+cool_loggmp_plot + geom_point(aes(colour = msa_data$management)) + scale_colour_gradient(low="green", high="red") + geom_smooth(se=FALSE)
+
+
+#Plot of ICT
+cool_ict_plot = ggplot( msa_data, aes(x=log(pop), y=log(gmp)) )
+cool_ict_plot + geom_point(aes(colour = msa_data$ict)) + scale_colour_gradient(low="green", high="red") + geom_smooth(se=FALSE)
+
+#Plot of Finance
+cool_fin_plot = ggplot( msa_data, aes(x=log(pop), y=log(gmp)) )
+cool_fin_plot + geom_point(aes(colour = msa_data$finance)) + scale_colour_gradient(low="green", high="red") + geom_smooth(se=FALSE)
+
+
+```
+
+Appendix III: Fitting the power law model
+--
+The following code performs a linear regression of log GMP on the log of population size and then summarizes it as following. 
+
+
+1) The estimates from the model can be translated such that for our expression that we found earlier in Appendix I question 1
+log(Y/N) = log(c) + (b-1)(log N). From the estimates, we can equate log(c) as the intercept and b-1 as the estimate of beta_1. These findings below are compatible with the supralinear power law scaling hypothesis. 
+
+```{r}
+model1 <- lm(log(msa_data$gmp)~log(msa_data$pop)) 
+summary(model1)
+
+```
+
+2) We should not believe that the the standard errors from summary function that we get from R because the points for the Scale-location plot are scattered towards the left, and they're not randomly scattered. 
+```{r}
+par(mfrow=c(1,2))
+plot(model1)
+```
+
+3)
+```{r}
+mean(model1$residuals^2)
+```
+
+4)
+```{r}
+#omitting values with NA and calculating the logs for both 
+#data_withoutNA = msa_data[complete.cases(msa_data),]
+data_withoutNA = na.omit(dplyr::select(msa_data, pop, gmp, finance, ict, management))
+gmp_log = log(data_withoutNA$gmp) 
+pop_log = log(data_withoutNA$pop)
+
+#combining the data
+combined_data = cbind(data_withoutNA, gmp_log,pop_log) 
+
+#fitting the model
+m1_glm = glm(gmp_log ~ pop_log, data=combined_data)
+summary(m1_glm)
+
+#5-fold cross-validation
+cv_result1 = cv.glm(combined_data, m1_glm, K=5)$delta[1] 
+cv_result1
+
+```
+
+Appendix IV: Fitting and assessment of alternate models
+--
+1) 2-3 alternate regression models are the following
+a) Alt_model1 - log(gmp)~ict
+b) Alt_model2 - log(gmp)~management
+c) Alt_model3 - log(gmp)~ ict+management
+
+2)
+```{r}
+#Alt_model1
+#alt_data1 = msa_data[complete.cases(msa_data$ict),] 
+alt_mod1 = lm( log(gmp)~ict, data=combined_data)
+summary(alt_mod1)
+
+
+#Alt_model2
+#alt_data2 = msa_data[complete.cases(msa_data$management),] 
+alt_mod2 = lm( log(gmp)~management, data=combined_data)
+summary(alt_mod2)
+
+#Alt_model3
+#alt_data3 = msa_data[complete.cases(msa_data$ict),]
+#alt_data3 = alt_data3[complete.cases(alt_data3$management),] 
+alt_mod3 = lm( log(gmp)~ ict + management, data=combined_data)
+summary(alt_mod3)
+```
+
+3)
+```{r}
+#5fold cross validation for alt_mod1: just using ict
+mean(alt_mod1$residuals^2)
+log_gmp1 = log(combined_data$gmp)
+comb_data_alt1 = cbind(combined_data, log_gmp1)
+# Run model
+model_glm1 = glm(log_gmp1 ~ ict, data=combined_data) # Run 5-fold cross-validation to get result 
+cv.glm(comb_data_alt1, model_glm1, K=5)$delta[1]
+
+mean(alt_mod1$residuals^2)
+
+
+#5fold cross validation for alt_mod2: just using management
+log_gmp2 = log(combined_data$gmp)
+comb_data_alt2 = cbind(combined_data, log_gmp2)
+# Run model
+model_glm2 = glm(log_gmp2 ~ management, data=combined_data) # Run 5-fold cross-validation to get result 
+cv.glm(comb_data_alt2, model_glm2, K=5)$delta[1]
+
+mean(alt_mod2$residuals^2)
+
+
+#5fold cross validation for alt_mod3: using both ict and management
+log_gmp3 = log(combined_data$gmp)
+comb_data_alt3 = cbind(combined_data, log_gmp3)
+# Run model
+model_glm3 = glm(log_gmp3 ~ ict + management, data=combined_data) # Run 5-fold cross-validation to get result 
+cv.glm(comb_data_alt3, model_glm3, K=5)$delta[1]
+
+mean(alt_mod3$residuals^2)
+```
+
+
+
+Appendix V: Additional Calculations for Paper 2
+--
+
+```{r}
+#New Data
+holdout_data = read.csv('http://dept.stat.lsa.umich.edu/~bbh/s485/data/gmp-2006-holdout.csv')
+
+#Calculating total GMP
+gmp = as.double(holdout_data$pcgmp)*as.double(holdout_data$pop) 
+
+#Adding a new variable to the dataframe
+holdout_data = data.frame(holdout_data, gmp)
+
+#Holdout Data - omitting the NAs
+holdout_data = holdout_data[complete.cases(holdout_data$ict),] 
+holdout_data2 = holdout_data[complete.cases(holdout_data$management),]
+newdata <- na.omit(dplyr::select(holdout_data, pop, gmp, finance, ict, management))
+
+#Original Model
+#Combine data
+log_gmp5 = log(newdata$gmp) 
+# Run model
+model_glm5 = glm(log_gmp5 ~ ict + management, data = newdata)
+
+
+#New Model
+#Combine data
+log_pop6 = log(newdata$pop)
+#Run Model
+model_glm6 = glm(log_gmp5 ~ log_pop6 + ict + management, data=newdata)
+
+#Anova
+anova(model_glm5, model_glm6, test="F")
+```
+
+Appendix IV: Fitting and assessment of alternate models using combined Data
+--
+2)
+```{r}
+# Alternate model 1 - GMP, population, ICT, & management
+both_data = na.omit(dplyr::select(msa_data, pop, gmp, finance, ict, management))
+both_mod = lm( log(gmp)~ log(pop) + ict + management, data=both_data)
+summary(both_mod)
+
+
+# Alternate model 2 - GMP, population, & ICT
+ict_mod = lm( log(gmp)~log(pop) + ict, data=both_data)
+summary(ict_mod)
+
+# Alternate model 3 - GMP, population, & management
+manag_mod = lm( log(gmp)~log(pop) + management, data=both_data) 
+summary(manag_mod)
+```
+
+
+3)
+```{r}
+#--ICT and management--
+# in-sample loss 
+mean(both_mod$residuals^2)
+# Combine data
+log_gmp_comb = log(both_data$gmp)
+log_pop_comb = log(both_data$pop)
+comb_data_k = cbind(both_data, log_gmp_comb, log_pop_comb)
+
+# 5-fold cv for ICT + Management
+model_glm2 = glm(log_gmp_comb ~ log_pop_comb + ict + management, data= comb_data_k)
+# Run 5-hold cross-validation to get result
+cv_result2 = cv.glm(comb_data_k, model_glm2, K=5)$delta[1] 
+cv_result2
+
+
+# ICT in-sample loss 
+mean(ict_mod$residuals^2)
+
+# 5-fold cv for ICT
+model_glm3 = glm(log_gmp_comb ~ log_pop_comb + ict, data= comb_data_k)
+# Run 5-hold cross-validation to get result
+cv_result3 = cv.glm(comb_data_k, model_glm3, K=5)$delta[1] 
+cv_result3
+
+
+# Management in-sample loss 
+mean(manag_mod$residuals^2)
+
+# 5-fold cv for management
+model_glm4 = glm(log_gmp_comb ~ log_pop_comb + management, data=comb_data_k)
+
+# Run 5-hold cross-validation to get result
+cv_result4 = cv.glm(comb_data_k, model_glm4, K=5)$delta[1] 
+cv_result4
+
+```
